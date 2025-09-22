@@ -32,6 +32,7 @@
 #pragma once
 
 #include "cfassert.h"
+#include "section_compact.h"
 
 /**
  * @brief Macro to indicate that a variable can be placed in the CCM
@@ -52,7 +53,7 @@
 #if defined(UNIT_TEST_MODE)
   #define NO_DMA_CCM_SAFE_ZERO_INIT
 #else
-  #define NO_DMA_CCM_SAFE_ZERO_INIT __attribute__((section(".ccmbss")))
+  #define NO_DMA_CCM_SAFE_ZERO_INIT SECTION(".ccmbss")
 #endif
 
 /**
@@ -62,7 +63,7 @@
  * not be used for DMA transfers, why special care should be taken to
  * make sure pointer to this memory will not be passed to a function
  * doing DMA.
- *
+
  * The memory is zero initialized at start up. If you assign a value
  * to the variable when declared, this value will be silently ignored
  * without a warning!
@@ -70,7 +71,7 @@
 #if defined(UNIT_TEST_MODE)
   #define FORCE_CCM_ZERO_INIT
 #else
-  #define FORCE_CCM_ZERO_INIT __attribute__((section(".ccmbss")))
+  #define FORCE_CCM_ZERO_INIT SECTION(".ccmbss")
 #endif
 
 

@@ -211,7 +211,7 @@ void socketlinkInit()
 
 
   // Create RX queue and start socketlink task
-  crtpPacketDelivery = xQueueCreate(5, sizeof(CRTPPacket));
+  crtpPacketDelivery = xQueueCreate(160, sizeof(CRTPPacket));
   DEBUG_QUEUE_MONITOR_REGISTER(crtpPacketDelivery);
 
   xTaskCreate(socketlinkTask, USBLINK_TASK_NAME,

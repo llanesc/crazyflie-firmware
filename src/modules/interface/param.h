@@ -30,6 +30,7 @@
 
 // Include param_logic.h for backwards compatibility in apps
 #include "param_logic.h"
+#include "section_compact.h"
 
 /* Basic parameter structure */
 struct param_s {
@@ -144,7 +145,7 @@ typedef float * (*paramGetterFloat)(void);
 #ifndef UNIT_TEST_MODE
 
 #define PARAM_GROUP_START(NAME)  \
-  static struct param_s __params_##NAME[] __attribute__((section(".param." #NAME), used)) = { \
+  static struct param_s __params_##NAME[] SECTION_PARAM(".param." #NAME) = { \
   PARAM_ADD_GROUP(PARAM_GROUP | PARAM_START, NAME, 0x0)
 
 #else // UNIT_TEST_MODE

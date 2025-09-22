@@ -58,6 +58,7 @@
 
 static SemaphoreHandle_t storageMutex;
 
+#ifndef CONFIG_PLATFORM_SITL
 static size_t readEeprom(size_t address, void* data, size_t length)
 {
   if (length == 0) {
@@ -107,27 +108,58 @@ static size_t writeEeprom(size_t address, const void* data, size_t length)
     return 0;
   }
 }
+#else
+// SITL stub implementations - no persistent storage in simulation
+static size_t readEeprom(size_t address, void* data, size_t length)
+{
+  // In SITL mode, we can't persist data, so we simulate empty/default EEPROM
+  if (length == 0) {
+    return 0;
+  }
+
+  // Initialize data to 0xFF (typical for empty EEPROM)
+  memset(data, 0xFF, length);
+
+#if TRACE_MEMORY_ACCESS
+  DEBUG_PRINT("R SITL @%04x l%d: ", address, length);
+  for (int i=0; i < length; i++) {
+    DEBUG_PRINT("%02x ", ((char*)data)[i]);
+  }
+  DEBUG_PRINT("\n");
+#endif
+
+  return length;
+}
+
+static size_t writeEeprom(size_t address, const void* data, size_t length)
+{
+  // In SITL mode, we can't persist data, so we just pretend the write succeeded
+  if (length == 0) {
+    return 0;
+  }
+
+#if TRACE_MEMORY_ACCESS
+  DEBUG_PRINT("W SITL @%04x: ", address);
+  for (int i=0; i < length; i++) {
+    DEBUG_PRINT("%02x ", ((char*)data)[i]);
+  }
+  DEBUG_PRINT("\n");
+#endif
+
+  return length;
+}
+#endif
 
 static void flushEeprom(void)
 {
   // NOP for now, lets fix the EEPROM write first!
 }
-#ifndef CONFIG_PLATFORM_SITL
 static kveMemory_t kve = {
   .memorySize = KVE_PARTITION_LENGTH,
   .read = readEeprom,
   .write = writeEeprom,
   .flush = flushEeprom,
 };
-#else
-// TODO: Can we implement persistent storage without EEPROM?
-static kveMemory_t kve = {
-  .memorySize = KVE_PARTITION_LENGTH,
-  .read = NULL,
-  .write = NULL,
-  .flush = NULL,
-};
-#endif
 // Public API
 
 static bool isInit = false;

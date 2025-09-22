@@ -108,6 +108,10 @@ set (CF2_SITL_INCLUDE_DIRS
 
 include_directories(${CF2_SITL_INCLUDE_DIRS})
 
+# Include Gazebo plugin build
+set(parallel_jobs 4)
+include(cmake/sitl_gazebo.cmake)
+
 set(SRCS
   # main
   ${CF2_SITL_SRCS_DIR}/init/main_sitl.c
@@ -234,8 +238,17 @@ target_link_libraries(cf2 ${CMAKE_THREAD_LIBS_INIT} m)
 
 target_compile_options(cf2 PUBLIC -DCONFIG_DECK_FORCE -DCONFIG_ESTIMATOR_KALMAN -DCONFIG_ESTIMATOR_KALMAN_ENABLE -DCRAZYFLIE_FW -DCONFIG_PLATFORM_SITL -DARCH_64)
 target_compile_definitions(cf2 PUBLIC CONFIG_PLATFORM_SITL)
-set_target_properties(
-  cf2 PROPERTIES LINK_FLAGS "-Wl,--gc-sections,-T${CMAKE_CURRENT_SOURCE_DIR}/log_param_linker.ld"
-)
-
-include(cmake/sitl_gazebo.cmake)
+# Check if we're on macOS and use the appropriate linker flags
+if(APPLE)
+  # macOS doesn't support GNU linker scripts, so we'll skip the linker script for now
+  # and just use dead code stripping. We need to define the section symbols differently.
+  set_target_properties(
+    cf2 PROPERTIES LINK_FLAGS "-Wl,-dead_strip"
+  )
+  # Add macOS-specific definitions for section boundaries
+  target_compile_definitions(cf2 PUBLIC CONFIG_PLATFORM_MACOS_SITL)
+else()
+  set_target_properties(
+    cf2 PROPERTIES LINK_FLAGS "-Wl,--gc-sections,-T${CMAKE_CURRENT_SOURCE_DIR}/log_param_linker.ld"
+  )
+endif()

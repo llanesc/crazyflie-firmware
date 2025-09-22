@@ -154,9 +154,19 @@ static void logControlProcess(void);
 void logRunBlock(void * arg);
 void logBlockTimed(xTimerHandle timer);
 
+#ifdef CONFIG_PLATFORM_MACOS_SITL
+#include <mach-o/getsect.h>
+#include <mach-o/dyld.h>
+#include <mach/mach.h>
+// For macOS SITL, we'll get section boundaries at runtime
+extern const struct mach_header_64 _mh_execute_header;
+static struct log_s *_log_start = NULL;
+static struct log_s *_log_stop = NULL;
+#else
 //These are set by the Linker
 extern struct log_s _log_start;
 extern struct log_s _log_stop;
+#endif
 
 //Pointer to the logeters list and length of it
 static struct log_s * logs;
@@ -190,8 +200,22 @@ void logInit(void)
   if(isInit)
     return;
 
+#ifdef CONFIG_PLATFORM_MACOS_SITL
+  // For macOS SITL, get section boundaries at runtime
+  unsigned long size;
+  _log_start = (struct log_s*)getsectiondata(&_mh_execute_header, "__DATA", ".log", &size);
+  if (_log_start) {
+    _log_stop = (struct log_s*)((char*)_log_start + size);
+    logs = _log_start;
+    logsLen = _log_stop - _log_start;
+  } else {
+    logs = NULL;
+    logsLen = 0;
+  }
+#else
   logs = &_log_start;
   logsLen = &_log_stop - &_log_start;
+#endif
 
   // Calculate a hash of the toc by chaining description of each elements
   // Using the CRTP packet as temporary buffer

@@ -81,6 +81,10 @@
   #include "cpxlink.h"
 #endif
 
+#ifdef CONFIG_PLATFORM_SITL
+#include "socketlink.h"
+#endif
+
 /* Private variable */
 static bool selftestPassed;
 static uint8_t dumpAssertInfo = 0;
