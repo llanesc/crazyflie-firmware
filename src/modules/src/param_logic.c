@@ -32,9 +32,10 @@
 #include "crc32.h"
 #include "debug.h"
 #include "cfassert.h"
+#include "storage.h"
+
 #ifndef CONFIG_PLATFORM_SITL
 #include "autoconf.h"
-#include "storage.h"
 #endif
 
 #if 0
@@ -72,7 +73,15 @@ static void paramNotifyChanged(int index);
 static char paramWriteByNameProcess(char* group, char* name, int type, void *valptr);
 
 
-#ifndef UNIT_TEST_MODE
+#ifdef CONFIG_PLATFORM_MACOS_SITL
+#include <mach-o/getsect.h>
+#include <mach-o/dyld.h>
+#include <mach/mach.h>
+// For macOS SITL, we'll get section boundaries at runtime
+extern const struct mach_header_64 _mh_execute_header;
+static struct param_s *_param_start = NULL;
+static struct param_s *_param_stop = NULL;
+#elif !defined(UNIT_TEST_MODE)
 //These are set by the Linker
 extern struct param_s _param_start;
 extern struct param_s _param_stop;
@@ -89,6 +98,14 @@ static int paramsLen;
 static uint32_t paramsCrc;
 static uint16_t paramsCount = 0;
 
+#ifdef CONFIG_PLATFORM_MACOS_SITL
+// For macOS SITL, we don't need these linker symbols as we don't distinguish Flash vs RAM
+static int _sdata = 0;
+static int _edata = 0;
+static int _sidata = 0;
+static int _stext = 0;
+static int _etext = 0;
+#else
 // _sdata is from linker script and points to start of data section
 extern int _sdata;
 extern int _edata;
@@ -97,10 +114,16 @@ extern int _sidata;
 // _stext is from linker script and points to start of flash section
 extern int _stext;
 extern int _etext;
+#endif
 static const uint64_t dummyZero64 = 0;
 
 static void * paramGetDefault(int index)
 {
+#ifdef CONFIG_PLATFORM_MACOS_SITL
+  // For macOS SITL, just return the current parameter value as the default
+  // since we don't have Flash vs RAM distinctions
+  return params[index].address;
+#else
   uint32_t valueRelative;
   uint32_t address;
   void *ptrDefaultValue;
@@ -127,6 +150,7 @@ static void * paramGetDefault(int index)
   }
 
   return ptrDefaultValue;
+#endif
 }
 
 /**
@@ -230,7 +254,21 @@ void paramLogicInit(void)
   int groupLength = 0;
   uint8_t buf[30];
 
-#ifndef UNIT_TEST_MODE
+#ifdef CONFIG_PLATFORM_MACOS_SITL
+  // For macOS SITL, get section boundaries at runtime
+  unsigned long size;
+  _param_start = (struct param_s*)getsectiondata(&_mh_execute_header, "__DATA", ".param", &size);
+  if (_param_start) {
+    _param_stop = (struct param_s*)((char*)_param_start + size);
+    params = _param_start;
+    paramsLen = _param_stop - _param_start;
+    DEBUG_PRINT("Found %d parameters!", paramsLen);
+  } else {
+    params = NULL;
+    paramsLen = 0;
+    DEBUG_PRINT("No parameters found!");
+  }
+#elif !defined(UNIT_TEST_MODE)
   params = &_param_start;
   paramsLen = &_param_stop - &_param_start;
 #else

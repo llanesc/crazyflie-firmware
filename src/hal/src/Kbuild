@@ -1,5 +1,11 @@
-obj-y += amg8833.o
+# Include for all platforms
 obj-y += buzzer.o
+obj-y += sensors.o
+obj-y += storage.o
+
+# Exclude for SITL
+ifneq ($(CONFIG_PLATFORM_SITL),y)
+obj-y += amg8833.o
 obj-y += freeRTOSdebug.o
 obj-y += ledseq.o
 obj-y += ow_common.o
@@ -14,11 +20,18 @@ obj-$(CONFIG_SENSORS_BMI088_I2C) += sensors_bmi088_i2c.o
 obj-$(CONFIG_SENSORS_BMI088_SPI) += sensors_bmi088_spi.o
 obj-$(CONFIG_SENSORS_BOSCH) += sensors_bosch.o
 obj-$(CONFIG_SENSORS_MPU9250_LPS25H) += sensors_mpu9250_lps25h.o
-obj-y += sensors.o
-obj-y += storage.o
 obj-y += syslink.o
 obj-y += usb_bsp.o
 obj-y += usbd_desc.o
 obj-y += usblink.o
 obj-y += usb.o
 obj-y += usec_time.o
+endif
+
+# Include for SITL
+ifeq ($(CONFIG_PLATFORM_SITL),y)
+obj-$(CONFIG_SENSORS_SITL) += sensors_sitl.o
+obj-y += usec_time_sitl.o
+obj-y += socketlink.o
+endif
+

@@ -286,7 +286,11 @@ static void stabilizerTask(void* param)
   // Wait for sensors to be calibrated
   lastWakeTime = xTaskGetTickCount();
   while(!sensorsAreCalibrated()) {
+    #ifdef CONFIG_PLATFORM_SITL
+    vTaskDelay(M2T(1)); // Using vTaskDelay frooze the firmware when in SITL
+    #else
     vTaskDelayUntil(&lastWakeTime, F2T(RATE_MAIN_LOOP));
+    #endif
   }
   // Initialize stabilizerStep to something else than 0
   stabilizerStep = 1;

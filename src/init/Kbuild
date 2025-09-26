@@ -1,2 +1,6 @@
+ifndef CONFIG_PLATFORM_SITL
 obj-y += main.o
 obj-y += startup_stm32f40xx.o
+else
+obj-y += main_sitl.o
+endif

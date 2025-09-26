@@ -28,6 +28,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include "section_compact.h"
 
 
 /* Data structures */
@@ -139,7 +140,7 @@ EVENTTRIGGER(myEvent, uint8, var1, uint32, var2)
     static const eventtriggerPayloadDesc __eventTriggerPayloadDesc__##NAME##__[] =                              \
         {                                                                                                       \
             CALL_MACRO_FOR_EACH_PAIR(_EVENTTRIGGER_ENTRY_DESCRIPTION, ##__VA_ARGS__)};                          \
-    static const eventtrigger eventTrigger_##NAME __attribute__((section(".eventtrigger." #NAME), used)) = {    \
+    static const eventtrigger eventTrigger_##NAME SECTION_EVENTTRIGGER(#NAME) = {    \
         .name = #NAME,                                                                                          \
         .payloadDesc = __eventTriggerPayloadDesc__##NAME##__,                                                   \
         .numPayloadVariables = sizeof(__eventTriggerPayloadDesc__##NAME##__) /                                  \
@@ -149,7 +150,7 @@ EVENTTRIGGER(myEvent, uint8, var1, uint32, var2)
     };
 
 #define _EVENTTRIGGER_EMPTY(NAME)                                                                               \
-    static const eventtrigger eventTrigger_##NAME __attribute__((section(".eventtrigger." #NAME), used)) = {    \
+    static const eventtrigger eventTrigger_##NAME SECTION_EVENTTRIGGER(#NAME) = {    \
         .name = #NAME,                                                                                          \
         .payloadDesc = NULL,                                                                                    \
         .numPayloadVariables = 0,                                                                               \

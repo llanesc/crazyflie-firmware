@@ -1,1 +1,3 @@
+ifndef CONFIG_PLATFORM_SITL
 obj-$(CONFIG_APP_API_TEST) += src/
+endif

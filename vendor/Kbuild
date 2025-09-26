@@ -1,3 +1,4 @@
+ifndef CONFIG_PLATFORM_SITL
 obj-y += CMSIS/CMSIS/DSP/Source/BasicMathFunctions/arm_abs_f32.o
 obj-y += CMSIS/CMSIS/DSP/Source/BasicMathFunctions/arm_abs_q15.o
 obj-y += CMSIS/CMSIS/DSP/Source/BasicMathFunctions/arm_abs_q31.o
@@ -270,16 +271,24 @@ obj-y += CMSIS/CMSIS/DSP/Source/TransformFunctions/arm_rfft_init_q15.o
 obj-y += CMSIS/CMSIS/DSP/Source/TransformFunctions/arm_rfft_init_q31.o
 obj-y += CMSIS/CMSIS/DSP/Source/TransformFunctions/arm_rfft_q15.o
 obj-y += CMSIS/CMSIS/DSP/Source/TransformFunctions/arm_rfft_q31.o
+endif
 
 # FreeRTOS
 obj-y += FreeRTOS/event_groups.o
 obj-y += FreeRTOS/list.o
-obj-y += FreeRTOS/portable/GCC/ARM_CM4F/port.o
-obj-y += FreeRTOS/portable/MemMang/heap_4.o
 obj-y += FreeRTOS/queue.o
 obj-y += FreeRTOS/tasks.o
 obj-y += FreeRTOS/timers.o
 obj-y += FreeRTOS/stream_buffer.o
+
+ifdef CONFIG_PLATFORM_SITL
+obj-y += FreeRTOS/portable/ThirdParty/GCC/Posix/port.o
+obj-y += FreeRTOS/portable/ThirdParty/GCC/Posix/utils/wait_for_event.o
+obj-y += FreeRTOS/portable/MemMang/heap_3.o
+else
+obj-y += FreeRTOS/portable/MemMang/heap_4.o
+obj-y += FreeRTOS/portable/GCC/ARM_CM4F/port.o
+endif
 
 # libdw1000
 obj-y += libdw1000/src/libdw1000.o

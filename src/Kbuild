@@ -1,8 +1,14 @@
-obj-y += deck/
-obj-y += drivers/
+# Include for all platforms
 obj-y += hal/
 obj-y += init/
-obj-y += lib/
 obj-y += modules/
 obj-y += platform/
 obj-y += utils/
+
+# Exclude for SITL
+ifndef CONFIG_PLATFORM_SITL
+obj-y += deck/
+obj-y += drivers/
+obj-y += lib/
+endif
+

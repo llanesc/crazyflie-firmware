@@ -26,6 +26,7 @@
 
 #define DEBUG_MODULE "SYS"
 
+#include "section_compact.h"
 #include <stdint.h>
 #include "FreeRTOS.h"
 #include "cfassert.h"
@@ -71,7 +72,7 @@ typedef struct SNAPSHOT_DATA {
 
 // The .nzds section is not cleared at startup, data here will survive a
 // reset (by the watch dog for instance)
-SNAPSHOT_DATA snapshot __attribute__((section(".nzds"))) = {
+SNAPSHOT_DATA snapshot SECTION(".nzds") = {
   .magicNumber = 0,
   .type = SnapshotTypeNone,
 };

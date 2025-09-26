@@ -67,7 +67,10 @@ INCLUDES += -I$(KBUILD_OUTPUT)/include/generated
 objs-y += src
 objs-y += vendor
 
+ifeq ($(CONFIG_PLATFORM_SITL),n)
 objs-y += app_api
+endif
+
 objs-y += $(OOT)
 
 MEM_SIZE_FLASH_K = 1008
@@ -107,6 +110,9 @@ ifeq ($(CONFIG_PLATFORM_FLAPPER),y)
 PLATFORM = flapper
 endif
 
+ifeq ($(CONFIG_PLATFORM_SITL),y)
+PLATFORM = sitl
+endif
 
 PLATFORM  ?= cf2
 PROG ?= $(PLATFORM)
@@ -117,12 +123,58 @@ else
 ARCH_CFLAGS += -Os -Werror
 endif
 
+ifeq ($(CONFIG_PLATFORM_SITL),y)
+
+# SITL uses different flags
+ARCH_CFLAGS := -O0 -Wno-unused-variable -std=gnu11 -g3 -Wall -Wno-maybe-uninitialized -Wno-error=maybe-uninitialized -Wmissing-braces -fno-strict-aliasing -ffunction-sections -fdata-sections -Wdouble-promotion -Wno-deprecated-declarations
+ARCH_CFLAGS += -DESTIMATOR=StateEstimatorTypeKalman -DCONTROLLER=ControllerTypePID -DCONFIG_SENSORS_SITL -DSENSORS_FORCE=SensorImplementation_sitl
+ARCH_CFLAGS += -DCONFIG_DECK_FORCE -DCONFIG_ESTIMATOR_KALMAN -DCONFIG_ESTIMATOR_KALMAN_ENABLE -DCRAZYFLIE_FW -DCONFIG_PLATFORM_SITL -DARCH_64
+
+# Override architecture settings for SITL
+ARCH := x86_64
+SRCARCH := x86_64
+
+# SITL uses POSIX FreeRTOS instead of ARM
+PORT = $(FREERTOS)/portable/ThirdParty/GCC/Posix
+INCLUDES += -I$(PORT)/utils
+
+# No cross-compilation for SITL
+CROSS_COMPILE :=
+CC := gcc
+LD := gcc
+
+# Use different linker flags
+# Use portable pthread flags for both compile and link
+ARCH_CFLAGS += -pthread
+LDFLAGS := -pthread
+
+# Use macOS-compatible linker flags
+ifeq ($(shell uname),Darwin)
+image_LDFLAGS := -Wl,-dead_strip
+ARCH_CFLAGS += -DCONFIG_PLATFORM_MACOS_SITL
+# Suppress libSystem.tbd warning on macOS
+LDFLAGS += -Wl,-w
+else
+image_LDFLAGS := -Wl,-Map=$(PROG).map,--gc-sections
+endif
+
+endif
+
 _all:
 
+ifeq ($(CONFIG_PLATFORM_SITL),y)
+all: $(PROG)
+	@echo "Build for the $(PLATFORM) platform!"
+	@$(PYTHON) $(srctree)/tools/make/versionTemplate.py --crazyflie-base $(srctree) --print-version
+
+$(PROG): $(PROG).elf
+	@cp $< $@
+else
 all: $(PROG).hex $(PROG).bin
 	@echo "Build for the $(PLATFORM) platform!"
 	@$(PYTHON) $(srctree)/tools/make/versionTemplate.py --crazyflie-base $(srctree) --print-version
 	@$(PYTHON) $(srctree)/tools/make/size.py $(SIZE) $(PROG).elf $(MEM_SIZE_FLASH_K) $(MEM_SIZE_RAM_K) $(MEM_SIZE_CCM_K)
+endif
 
 include tools/make/targets.mk
 

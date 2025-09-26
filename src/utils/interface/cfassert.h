@@ -31,6 +31,8 @@
 
 #ifdef CONFIG_PLATFORM_SITL
 
+#include "FreeRTOSConfig.h"
+
 #define ASSERT(e)  if (e) ; \
         else vAssertCalled( __LINE__ , __FILE__)
 

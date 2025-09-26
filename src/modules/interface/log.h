@@ -29,6 +29,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include "section_compact.h"
 
 /* Public functions */
 void logInit(void);
@@ -184,8 +185,9 @@ typedef struct {
    { \
   .type = TYPE, .name = #NAME, .address = (void*)(ADDRESS), },
 
+
 #define LOG_GROUP_START(NAME)  \
-  static const struct log_s __logs_##NAME[] __attribute__((section(".log." #NAME), used)) = { \
+  static const struct log_s __logs_##NAME[] SECTION_LOG(#NAME) = { \
   LOG_ADD_GROUP(LOG_GROUP | LOG_START, NAME, 0x0)
 
 //#define LOG_GROUP_START_SYNC(NAME, LOCK) LOG_ADD_GROUP(LOG_GROUP | LOG_START, NAME, LOCK);

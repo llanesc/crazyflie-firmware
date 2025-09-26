@@ -1,7 +1,5 @@
 obj-y += app_channel.o
 obj-$(CONFIG_APP_ENABLE) += app_handler.o
-obj-y += bootloader.o
-obj-y += collision_avoidance.o
 obj-y += collision_avoidance.o
 obj-y += commander.o
 obj-y += comm.o
@@ -13,10 +11,6 @@ obj-y += crtp_commander_rpyt.o
 obj-y += crtp_localization_service.o
 obj-y += crtp.o
 obj-y += crtpservice.o
-obj-y += esp_deck_flasher.o
-obj-y += eventtrigger.o
-obj-y += extrx.o
-obj-y += health.o
 obj-$(CONFIG_ESTIMATOR_KALMAN_ENABLE) += kalman_supervisor.o
 obj-y += axis3fSubSampler.o
 obj-y += log.o
@@ -30,14 +24,12 @@ obj-y += planner.o
 obj-y += platformservice.o
 obj-$(CONFIG_POWER_DISTRIBUTION_QUADROTOR) += power_distribution_quadrotor.o
 obj-$(CONFIG_POWER_DISTRIBUTION_FLAPPER) += power_distribution_flapper.o
+obj-$(CONFIG_POWER_DISTRIBUTION_SITL) += power_distribution_sitl.o
 obj-y += pptraj_compressed.o
 obj-y += pptraj.o
 obj-y += queuemonitor.o
 obj-y += range.o
 obj-y += sensfusion6.o
-obj-y += serial_4way_avrootloader.o
-obj-y += serial_4way.o
-obj-y += sound_cf2.o
 obj-y += stabilizer.o
 obj-y += static_mem.o
 obj-y += supervisor.o
@@ -45,14 +37,30 @@ obj-y += supervisor_state_machine.o
 obj-y += sysload.o
 obj-y += system.o
 obj-$(CONFIG_DECK_LOCO) += tdoaEngineInstance.o
-obj-y += vcp_esc_passthrough.o
+
 obj-y += worker.o
+
+obj-y += eventtrigger.o
+
+ifndef CONFIG_PLATFORM_SITL
+obj-y += bootloader.o
+obj-y += esp_deck_flasher.o
+obj-y += extrx.o
+obj-y += health.o
+obj-y += serial_4way_avrootloader.o
+obj-y += serial_4way.o
+obj-y += sound_cf2.o
+obj-y += vcp_esc_passthrough.o
+endif
 
 # Sub folders
 obj-$(CONFIG_ESTIMATOR_KALMAN_ENABLE) += kalman_core/
-obj-y += lighthouse/
 obj-y += controller/
 obj-y += estimator/
+obj-y += outlierfilter/
+
+ifndef CONFIG_PLATFORM_SITL
+obj-y += lighthouse/
 obj-y += cpx/
 obj-y += p2pDTR/
-obj-y += outlierfilter/
+endif

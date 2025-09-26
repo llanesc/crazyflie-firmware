@@ -1,6 +1,6 @@
 obj-y += cfassert.o
 obj-y += clockCorrectionEngine.o
-obj-y += configblockeeprom.o
+
 obj-y += cpuid.o
 obj-y += crc32.o
 obj-y += debug.o
@@ -15,15 +15,26 @@ obj-y += rateSupervisor.o
 obj-y += sleepus.o
 obj-y += statsCnt.o
 
+ifdef CONFIG_PLATFORM_SITL
+obj-y += configblocksitl.o
+else 
+obj-y += configblockeeprom.o
+endif
+
+
 ### Sub directories
 obj-y += kve/
-obj-y += lighthouse/
 obj-y += tdoa/
 
+ifndef CONFIG_PLATFORM_SITL
+obj-y += lighthouse/
+endif
 
 ### Implementations for abort(), malloc() and free(), needed to interact with apps written in C++
 obj-y += abort.o
-obj-y += malloc.o
+ifndef CONFIG_PLATFORM_SITL
+obj-y += malloc.o  # Exclude for SITL to avoid circular dependency with heap_3.c
+endif
 obj-y += pid.o
 
 ### Rules for handling generated version.c

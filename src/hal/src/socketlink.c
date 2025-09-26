@@ -77,6 +77,8 @@ static uint8_t socket_buff[33];
 
 static void socketlinkTask(void *param)
 {
+
+  DEBUG_PRINT("socketlinkTask started\n");
   int recvlen;
   while(1)
   {
@@ -211,11 +213,19 @@ void socketlinkInit()
 
 
   // Create RX queue and start socketlink task
-  crtpPacketDelivery = xQueueCreate(5, sizeof(CRTPPacket));
+  crtpPacketDelivery = xQueueCreate(160, sizeof(CRTPPacket));
   DEBUG_QUEUE_MONITOR_REGISTER(crtpPacketDelivery);
 
-  xTaskCreate(socketlinkTask, USBLINK_TASK_NAME,
+  BaseType_t xReturned = xTaskCreate(socketlinkTask, USBLINK_TASK_NAME,
               USBLINK_TASK_STACKSIZE, NULL, USBLINK_TASK_PRI-1, NULL);
+
+  if (xReturned != pdPASS) {
+    DEBUG_PRINT("Failed to create socketlinkTask\n");
+    ASSERT_FAILED();
+    return;
+  }
+
+  DEBUG_PRINT("Successfuly created socketlinkTask\n");
 
   isInit = true;
 }

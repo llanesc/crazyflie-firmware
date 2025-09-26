@@ -31,21 +31,55 @@
 
 static eventtriggerCallback callbacks[eventtriggerHandler_Count] = {0};
 
+#ifdef CONFIG_PLATFORM_MACOS_SITL
+#include <mach-o/getsect.h>
+#include <mach-o/dyld.h>
+#include <mach/mach.h>
+// For macOS SITL, we'll get section boundaries at runtime
+extern const struct mach_header_64 _mh_execute_header;
+static eventtrigger *_eventtrigger_start = NULL;
+static eventtrigger *_eventtrigger_stop = NULL;
+#else
 /* Symbols set by the linker script */
 extern eventtrigger _eventtrigger_start;
 extern eventtrigger _eventtrigger_stop;
+#endif
+
+void initalizeSectionBoundaries() {
+    if (_eventtrigger_start == NULL) {
+        unsigned long size;
+        _eventtrigger_start = (eventtrigger*)getsectiondata(&_mh_execute_header, "__DATA", ".eventtrigger", &size);
+        if (_eventtrigger_start) {
+            _eventtrigger_stop = (eventtrigger*)((char*)_eventtrigger_start + size);
+        }
+    }
+}
 
 uint16_t eventtriggerGetId(const eventtrigger *event)
 {
+#ifdef CONFIG_PLATFORM_MACOS_SITL
+    // Initialize section boundaries if not already done
+    initalizeSectionBoundaries();
+    if (_eventtrigger_start == NULL) return 0;
+    return event - _eventtrigger_start;
+#else
     // const eventtrigger* start = &_eventtrigger_start;
     return event - &_eventtrigger_start;
     return 0;
+#endif
 }
 
 const eventtrigger *eventtriggerGetById(uint16_t id)
 {
+#ifdef CONFIG_PLATFORM_MACOS_SITL
+    // Initialize section boundaries if not already done
+    initalizeSectionBoundaries();
+    const eventtrigger *result = _eventtrigger_start;
+    int numEventtriggers = _eventtrigger_stop - _eventtrigger_start;
+#else
     const eventtrigger *result = &_eventtrigger_start;
     int numEventtriggers = &_eventtrigger_stop - &_eventtrigger_start;
+#endif
     if (id < numEventtriggers) {
         return &result[id];
     }
@@ -54,8 +88,15 @@ const eventtrigger *eventtriggerGetById(uint16_t id)
 
 const eventtrigger* eventtriggerGetByName(const char *name)
 {
+#ifdef CONFIG_PLATFORM_MACOS_SITL
+    // Initialize section boundaries if not already done
+    initalizeSectionBoundaries();
+    const eventtrigger* result = _eventtrigger_start;
+    int numEventtriggers = _eventtrigger_stop - _eventtrigger_start;
+#else
     const eventtrigger* result = &_eventtrigger_start;
     int numEventtriggers = &_eventtrigger_stop - &_eventtrigger_start;
+#endif
     for (int i = 0; i < numEventtriggers; ++i) {
         if (strcmp(result[i].name, name) == 0) {
             return &result[i];

@@ -188,6 +188,7 @@ config MOTORS_DEFAULT_BAT_TEST_PWM_RATIO
 
 choice
     prompt "Type of power distribution"
+    default POWER_DISTRIBUTION_SITL if PLATFORM_SITL
     default POWER_DISTRIBUTION_QUADROTOR
 
 config POWER_DISTRIBUTION_QUADROTOR
@@ -200,6 +201,12 @@ config POWER_DISTRIBUTION_FLAPPER
     depends on PLATFORM_FLAPPER
     help
         Power distribution function for Flapper Nimble+
+
+config POWER_DISTRIBUTION_SITL
+    bool "SITL power distribution"
+    depends on PLATFORM_SITL
+    help
+        Power distribution function for SITL (Software In The Loop) simulation
 
 endchoice
 config POWER_DISTRIBUTION_FLAPPER_REVB
