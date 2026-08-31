@@ -30,32 +30,32 @@
 #include "FreeRTOS.h"
 #include "task.h"
 
-#include "system.h"
-#include "log.h"
-#include "param.h"
 #include "debug.h"
+#include "log.h"
 #include "motors.h"
-#include "pm.h"
+#include "param.h"
 #include "platform.h"
+#include "pm.h"
+#include "system.h"
 
 #include "stabilizer.h"
 
-#include "sensors.h"
+#include "collision_avoidance.h"
 #include "commander.h"
+#include "controller.h"
 #include "crtp_commander_high_level.h"
 #include "crtp_localization_service.h"
-#include "controller.h"
-#include "power_distribution.h"
-#include "collision_avoidance.h"
 #include "health.h"
+#include "power_distribution.h"
+#include "sensors.h"
 #include "supervisor.h"
 
 #include "estimator.h"
-#include "usddeck.h"
 #include "quatcompress.h"
-#include "statsCnt.h"
-#include "static_mem.h"
 #include "rateSupervisor.h"
+#include "static_mem.h"
+#include "statsCnt.h"
+#include "usddeck.h"
 
 static bool isInit;
 
@@ -121,17 +121,15 @@ static struct {
 STATIC_MEM_TASK_ALLOC(stabilizerTask, STABILIZER_TASK_STACKSIZE);
 STATIC_MEM_TASK_ALLOC(rateSupervisorTask, RATE_SUPERVISOR_TASK_STACKSIZE);
 
-static void stabilizerTask(void* param);
-static void rateSupervisorTask(void* param);
+static void stabilizerTask(void *param);
+static void rateSupervisorTask(void *param);
 
-static void calcSensorToOutputLatency(const sensorData_t *sensorData)
-{
+static void calcSensorToOutputLatency(const sensorData_t *sensorData) {
   uint64_t outTimestamp = usecTimestamp();
   inToOutLatency = outTimestamp - sensorData->interruptTimestamp;
 }
 
-static void compressState()
-{
+static void compressState() {
   stateCompressed.x = state.position.x * 1000.0f;
   stateCompressed.y = state.position.y * 1000.0f;
   stateCompressed.z = state.position.z * 1000.0f;
@@ -144,11 +142,8 @@ static void compressState()
   stateCompressed.ay = state.acc.y * 9.81f * 1000.0f;
   stateCompressed.az = (state.acc.z + 1) * 9.81f * 1000.0f;
 
-  float const q[4] = {
-    state.attitudeQuaternion.x,
-    state.attitudeQuaternion.y,
-    state.attitudeQuaternion.z,
-    state.attitudeQuaternion.w};
+  float const q[4] = {state.attitudeQuaternion.x, state.attitudeQuaternion.y,
+                      state.attitudeQuaternion.z, state.attitudeQuaternion.w};
   stateCompressed.quat = quatcompress(q);
 
   float const deg2millirad = ((float)M_PI * 1000.0f) / 180.0f;
@@ -157,8 +152,7 @@ static void compressState()
   stateCompressed.rateYaw = sensorData.gyro.z * deg2millirad;
 }
 
-static void compressSetpoint()
-{
+static void compressSetpoint() {
   setpointCompressed.x = setpoint.position.x * 1000.0f;
   setpointCompressed.y = setpoint.position.y * 1000.0f;
   setpointCompressed.z = setpoint.position.z * 1000.0f;
@@ -172,9 +166,8 @@ static void compressSetpoint()
   setpointCompressed.az = setpoint.acceleration.z * 1000.0f;
 }
 
-void stabilizerInit(StateEstimatorType estimator)
-{
-  if(isInit)
+void stabilizerInit(StateEstimatorType estimator) {
+  if (isInit)
     return;
 
   sensorsInit();
@@ -186,13 +179,13 @@ void stabilizerInit(StateEstimatorType estimator)
   estimatorType = stateEstimatorGetType();
   controllerType = controllerGetType();
 
-  STATIC_MEM_TASK_CREATE(stabilizerTask, stabilizerTask, STABILIZER_TASK_NAME, NULL, STABILIZER_TASK_PRI);
+  STATIC_MEM_TASK_CREATE(stabilizerTask, stabilizerTask, STABILIZER_TASK_NAME,
+                         NULL, STABILIZER_TASK_PRI);
 
   isInit = true;
 }
 
-bool stabilizerTest(void)
-{
+bool stabilizerTest(void) {
   bool pass = true;
 
   pass &= sensorsTest();
@@ -205,21 +198,21 @@ bool stabilizerTest(void)
   return pass;
 }
 
-static void batteryCompensation(const motors_thrust_uncapped_t* motorThrustUncapped, motors_thrust_uncapped_t* motorThrustBatCompUncapped)
-{
+static void
+batteryCompensation(const motors_thrust_uncapped_t *motorThrustUncapped,
+                    motors_thrust_uncapped_t *motorThrustBatCompUncapped) {
   // Low pass on the BatteryVoltage
   float b = 0.01f; // 0.2f = Convergence (95%) in ~10 steps = ~20ms
   static float supplyVoltage = 4.2;
-  supplyVoltage = supplyVoltage + b*(pmGetBatteryVoltage() - supplyVoltage);
+  supplyVoltage = supplyVoltage + b * (pmGetBatteryVoltage() - supplyVoltage);
 
-  for (int motor = 0; motor < STABILIZER_NR_OF_MOTORS; motor++)
-  {
-    motorThrustBatCompUncapped->list[motor] = motorsCompensateBatteryVoltage(motor, motorThrustUncapped->list[motor], supplyVoltage);
+  for (int motor = 0; motor < STABILIZER_NR_OF_MOTORS; motor++) {
+    motorThrustBatCompUncapped->list[motor] = motorsCompensateBatteryVoltage(
+        motor, motorThrustUncapped->list[motor], supplyVoltage);
   }
 }
 
-static void setMotorRatios(const motors_thrust_pwm_t* motorPwm)
-{
+static void setMotorRatios(const motors_thrust_pwm_t *motorPwm) {
   motorsSetRatio(MOTOR_M1, motorPwm->motors.m1);
   motorsSetRatio(MOTOR_M2, motorPwm->motors.m2);
   motorsSetRatio(MOTOR_M3, motorPwm->motors.m3);
@@ -239,7 +232,7 @@ static void updateStateEstimatorAndControllerTypes() {
 }
 
 static void logCapWarning(const bool isCapped) {
-  #ifdef CONFIG_LOG_MOTOR_CAP_WARNING
+#ifdef CONFIG_LOG_MOTOR_CAP_WARNING
   static uint32_t nextReportTick = 0;
 
   if (isCapped) {
@@ -249,13 +242,14 @@ static void logCapWarning(const bool isCapped) {
       nextReportTick = now + M2T(3000);
     }
   }
-  #endif
+#endif
 }
 
-static void controlMotors(const control_t* control) {
+static void controlMotors(const control_t *control) {
   powerDistribution(control, &motorThrustUncapped);
   batteryCompensation(&motorThrustUncapped, &motorThrustBatCompUncapped);
-  const bool isCapped = powerDistributionCap(&motorThrustBatCompUncapped, &motorPwm);
+  const bool isCapped =
+      powerDistributionCap(&motorThrustBatCompUncapped, &motorPwm);
   logCapWarning(isCapped);
   setMotorRatios(&motorPwm);
 }
@@ -265,9 +259,11 @@ void rateSupervisorTask(void *pvParameters) {
     // Wait for the semaphore to be given by the stabilizerTask
     if (xSemaphoreTake(xRateSupervisorSemaphore, M2T(2000)) == pdTRUE) {
       // Validate the rate
-      if (!rateSupervisorValidate(&rateSupervisorContext, xTaskGetTickCount())) {
+      if (!rateSupervisorValidate(&rateSupervisorContext,
+                                  xTaskGetTickCount())) {
         if (!rateWarningDisplayed) {
-          DEBUG_PRINT("WARNING: stabilizer loop rate is off (%lu)\n", rateSupervisorLatestCount(&rateSupervisorContext));
+          DEBUG_PRINT("WARNING: stabilizer loop rate is off (%lu)\n",
+                      rateSupervisorLatestCount(&rateSupervisorContext));
           rateWarningDisplayed = true;
         }
       }
@@ -276,7 +272,8 @@ void rateSupervisorTask(void *pvParameters) {
       if (isSensorsSuspended() == false) {
         // Handle the case where the semaphore was not given within the timeout
         DEBUG_PRINT("ERROR: stabilizerTask is blocking\n");
-        ASSERT(false); // For safety, assert if the stabilizer task is blocking to ensure motor shutdown
+        ASSERT(false); // For safety, assert if the stabilizer task is blocking
+                       // to ensure motor shutdown
       }
     }
   }
@@ -286,20 +283,19 @@ void rateSupervisorTask(void *pvParameters) {
  * responsibility of the different functions to run slower by skipping call
  * (ie. returning without modifying the output structure).
  */
-static void stabilizerTask(void* param)
-{
+static void stabilizerTask(void *param) {
   stabilizerStep_t stabilizerStep;
-  uint32_t lastWakeTime;
-  vTaskSetApplicationTaskTag(0, (void*)TASK_STABILIZER_ID_NBR);
+  TickType_t lastWakeTime;
+  vTaskSetApplicationTaskTag(0, (void *)TASK_STABILIZER_ID_NBR);
 
-  //Wait for the system to be fully started to start stabilization loop
+  // Wait for the system to be fully started to start stabilization loop
   systemWaitStart();
 
   DEBUG_PRINT("Wait for sensor calibration...\n");
 
   // Wait for sensors to be calibrated
   lastWakeTime = xTaskGetTickCount();
-  while(!sensorsAreCalibrated()) {
+  while (!sensorsAreCalibrated()) {
     vTaskDelayUntil(&lastWakeTime, F2T(RATE_MAIN_LOOP));
   }
   // Initialize stabilizerStep to something else than 0
@@ -307,11 +303,14 @@ static void stabilizerTask(void* param)
 
   systemWaitStart();
   DEBUG_PRINT("Starting stabilizer loop\n");
-  rateSupervisorInit(&rateSupervisorContext, xTaskGetTickCount(), M2T(1000), 997, 1003, 1);
+  rateSupervisorInit(&rateSupervisorContext, xTaskGetTickCount(), M2T(1000),
+                     997, 1003, 1);
   xRateSupervisorSemaphore = xSemaphoreCreateBinary();
-  STATIC_MEM_TASK_CREATE(rateSupervisorTask, rateSupervisorTask, RATE_SUPERVISOR_TASK_NAME, NULL, RATE_SUPERVISOR_TASK_PRI);
+  STATIC_MEM_TASK_CREATE(rateSupervisorTask, rateSupervisorTask,
+                         RATE_SUPERVISOR_TASK_NAME, NULL,
+                         RATE_SUPERVISOR_TASK_PRI);
 
-  while(1) {
+  while (1) {
     // The sensor should unlock at 1kHz
     sensorsWaitDataReady();
 
@@ -328,9 +327,10 @@ static void stabilizerTask(void* param)
       const bool areMotorsAllowedToRun = supervisorAreMotorsAllowedToRun();
 
       // Critical for safety, be careful if you modify this code!
-      crtpCommanderBlock(! areMotorsAllowedToRun);
+      crtpCommanderBlock(!areMotorsAllowedToRun);
 
-      if (crtpCommanderHighLevelGetSetpoint(&tempSetpoint, &state, stabilizerStep)) {
+      if (crtpCommanderHighLevelGetSetpoint(&tempSetpoint, &state,
+                                            stabilizerStep)) {
         commanderSetSetpoint(&tempSetpoint, COMMANDER_PRIORITY_HIGHLEVEL);
       }
       commanderGetSetpoint(&setpoint, &state);
@@ -340,7 +340,8 @@ static void stabilizerTask(void* param)
       supervisorUpdate(&sensorData, &setpoint, stabilizerStep);
 
       // Let the collision avoidance module modify the setpoint, if needed
-      collisionAvoidanceUpdateSetpoint(&setpoint, &sensorData, &state, stabilizerStep);
+      collisionAvoidanceUpdateSetpoint(&setpoint, &sensorData, &state,
+                                       stabilizerStep);
 
       // Critical for safety, be careful if you modify this code!
       // Let the supervisor modify the setpoint to handle exceptional conditions
@@ -349,7 +350,8 @@ static void stabilizerTask(void* param)
       controller(&control, &setpoint, &sensorData, &state, stabilizerStep);
 
       // Critical for safety, be careful if you modify this code!
-      // The supervisor will already set thrust to 0 in the setpoint if needed, but to be extra sure prevent motors from running.
+      // The supervisor will already set thrust to 0 in the setpoint if needed,
+      // but to be extra sure prevent motors from running.
       if (areMotorsAllowedToRun) {
         controlMotors(&control);
       } else {
@@ -362,9 +364,9 @@ static void stabilizerTask(void* param)
 
 #ifdef CONFIG_DECK_USD
       // Log data to uSD card if configured
-      if (usddeckLoggingEnabled()
-          && usddeckLoggingMode() == usddeckLoggingMode_SynchronousStabilizer
-          && RATE_DO_EXECUTE(usddeckFrequency(), stabilizerStep)) {
+      if (usddeckLoggingEnabled() &&
+          usddeckLoggingMode() == usddeckLoggingMode_SynchronousStabilizer &&
+          RATE_DO_EXECUTE(usddeckFrequency(), stabilizerStep)) {
         usddeckTriggerLogging();
       }
 #endif
@@ -387,18 +389,19 @@ static void stabilizerTask(void* param)
  */
 PARAM_GROUP_START(stabilizer)
 /**
- * @brief Estimator type Auto select(0), complementary(1), extended kalman(2), **unscented kalman(3)  (Default: 0)
+ * @brief Estimator type Auto select(0), complementary(1), extended kalman(2),
+ * **unscented kalman(3)  (Default: 0)
  *
  * ** Experimental, needs to be enabled in kbuild
  */
 PARAM_ADD_CORE(PARAM_UINT8, estimator, &estimatorType)
 /**
- * @brief Controller type Auto select(0), PID(1), Mellinger(2), INDI(3), Brescianini(4), Lee(5) (Default: 0)
+ * @brief Controller type Auto select(0), PID(1), Mellinger(2), INDI(3),
+ * Brescianini(4), Lee(5) (Default: 0)
  */
 PARAM_ADD_CORE(PARAM_UINT8, controller, &controllerType)
 
 PARAM_GROUP_STOP(stabilizer)
-
 
 /**
  * Log group for the current controller target
@@ -679,24 +682,29 @@ LOG_ADD(LOG_INT16, ctr_yaw, &control.yaw)
 LOG_GROUP_STOP(controller)
 
 /**
- * Log group for the state estimator, the currently estimated state of the platform.
+ * Log group for the state estimator, the currently estimated state of the
+ * platform.
  *
- * Note: all values may not be updated depending on which estimator that is used.
+ * Note: all values may not be updated depending on which estimator that is
+ * used.
  */
 LOG_GROUP_START(stateEstimate)
 
 /**
- * @brief The estimated position of the platform in the global reference frame, X [m]
+ * @brief The estimated position of the platform in the global reference frame,
+ * X [m]
  */
 LOG_ADD_CORE(LOG_FLOAT, x, &state.position.x)
 
 /**
- * @brief The estimated position of the platform in the global reference frame, Y [m]
+ * @brief The estimated position of the platform in the global reference frame,
+ * Y [m]
  */
 LOG_ADD_CORE(LOG_FLOAT, y, &state.position.y)
 
 /**
- * @brief The estimated position of the platform in the global reference frame, Z [m]
+ * @brief The estimated position of the platform in the global reference frame,
+ * Z [m]
  */
 LOG_ADD_CORE(LOG_FLOAT, z, &state.position.z)
 
@@ -716,17 +724,20 @@ LOG_ADD_CORE(LOG_FLOAT, vy, &state.velocity.y)
 LOG_ADD_CORE(LOG_FLOAT, vz, &state.velocity.z)
 
 /**
- * @brief The acceleration of the Crazyflie in the global reference frame, X [Gs]
+ * @brief The acceleration of the Crazyflie in the global reference frame, X
+ * [Gs]
  */
 LOG_ADD_CORE(LOG_FLOAT, ax, &state.acc.x)
 
 /**
- * @brief The acceleration of the Crazyflie in the global reference frame, Y [Gs]
+ * @brief The acceleration of the Crazyflie in the global reference frame, Y
+ * [Gs]
  */
 LOG_ADD_CORE(LOG_FLOAT, ay, &state.acc.y)
 
 /**
- * @brief The acceleration of the Crazyflie in the global reference frame, without considering gravity, Z [Gs]
+ * @brief The acceleration of the Crazyflie in the global reference frame,
+ * without considering gravity, Z [Gs]
  */
 LOG_ADD_CORE(LOG_FLOAT, az, &state.acc.z)
 
@@ -736,7 +747,8 @@ LOG_ADD_CORE(LOG_FLOAT, az, &state.acc.z)
 LOG_ADD_CORE(LOG_FLOAT, roll, &state.attitude.roll)
 
 /**
- * @brief Attitude, pitch angle (legacy CF2 body coordinate system, where pitch is inverted) [deg]
+ * @brief Attitude, pitch angle (legacy CF2 body coordinate system, where pitch
+ * is inverted) [deg]
  */
 LOG_ADD_CORE(LOG_FLOAT, pitch, &state.attitude.pitch)
 
@@ -768,10 +780,11 @@ LOG_GROUP_STOP(stateEstimate)
 
 /**
  * Log group for the state estimator, compressed format. This flavour of the
- * estimator logs are defined with types that use less space and makes it possible to
- * add more logs to a log configuration.
+ * estimator logs are defined with types that use less space and makes it
+ * possible to add more logs to a log configuration.
  *
- * Note: all values may not be updated depending on which estimator that is used.
+ * Note: all values may not be updated depending on which estimator that is
+ * used.
  */
 LOG_GROUP_START(stateEstimateZ)
 
@@ -806,22 +819,26 @@ LOG_ADD(LOG_INT16, vy, &stateCompressed.vy)
 LOG_ADD(LOG_INT16, vz, &stateCompressed.vz)
 
 /**
- * @brief The acceleration of the Crazyflie in the global reference frame, X [mm/s]
+ * @brief The acceleration of the Crazyflie in the global reference frame, X
+ * [mm/s]
  */
 LOG_ADD(LOG_INT16, ax, &stateCompressed.ax)
 
 /**
- * @brief The acceleration of the Crazyflie in the global reference frame, Y [mm/s]
+ * @brief The acceleration of the Crazyflie in the global reference frame, Y
+ * [mm/s]
  */
 LOG_ADD(LOG_INT16, ay, &stateCompressed.ay)
 
 /**
- * @brief The acceleration of the Crazyflie in the global reference frame, including gravity, Z [mm/s]
+ * @brief The acceleration of the Crazyflie in the global reference frame,
+ * including gravity, Z [mm/s]
  */
 LOG_ADD(LOG_INT16, az, &stateCompressed.az)
 
 /**
- * @brief Attitude as a compressed quaternion, see see quatcompress.h for details
+ * @brief Attitude as a compressed quaternion, see see quatcompress.h for
+ * details
  */
 LOG_ADD(LOG_UINT32, quat, &stateCompressed.quat)
 
@@ -841,30 +858,33 @@ LOG_ADD(LOG_INT16, ratePitch, &stateCompressed.ratePitch)
 LOG_ADD(LOG_INT16, rateYaw, &stateCompressed.rateYaw)
 LOG_GROUP_STOP(stateEstimateZ)
 
-
 LOG_GROUP_START(motor)
 
 /**
- * @brief Requested motor power for m1, including battery compensation. Same scale as the motor PWM but uncapped
- * and may have values outside the [0 - UINT16_MAX] range.
+ * @brief Requested motor power for m1, including battery compensation. Same
+ * scale as the motor PWM but uncapped and may have values outside the [0 -
+ * UINT16_MAX] range.
  */
 LOG_ADD(LOG_INT32, m1req, &motorThrustBatCompUncapped.motors.m1)
 
 /**
- * @brief Requested motor power for m1, including battery compensation. Same scale as the motor PWM but uncapped
- * and may have values outside the [0 - UINT16_MAX] range.
+ * @brief Requested motor power for m1, including battery compensation. Same
+ * scale as the motor PWM but uncapped and may have values outside the [0 -
+ * UINT16_MAX] range.
  */
 LOG_ADD(LOG_INT32, m2req, &motorThrustBatCompUncapped.motors.m2)
 
 /**
- * @brief Requested motor power for m1, including battery compensation. Same scale as the motor PWM but uncapped
- * and may have values outside the [0 - UINT16_MAX] range.
+ * @brief Requested motor power for m1, including battery compensation. Same
+ * scale as the motor PWM but uncapped and may have values outside the [0 -
+ * UINT16_MAX] range.
  */
 LOG_ADD(LOG_INT32, m3req, &motorThrustBatCompUncapped.motors.m3)
 
 /**
- * @brief Requested motor power for m1, including battery compensation. Same scale as the motor PWM but uncapped
- * and may have values outside the [0 - UINT16_MAX] range.
+ * @brief Requested motor power for m1, including battery compensation. Same
+ * scale as the motor PWM but uncapped and may have values outside the [0 -
+ * UINT16_MAX] range.
  */
 LOG_ADD(LOG_INT32, m4req, &motorThrustBatCompUncapped.motors.m4)
 LOG_GROUP_STOP(motor)
